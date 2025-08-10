@@ -37,14 +37,25 @@ def shorten_destination(destination):
 	destination = (destination[:12] + '') if len(destination) > 12 else destination
 	return destination
 
-def build_payload(page_letter):
+def build_payload_station(page_letter):
 	# Datasheet https://asset.conrad.com/media10/add/160267/c1/-/en/000590996DS01/datablad-590996-mc-crypt-am03127-h13.pdf
 	payload = '<L1>'				# Always use Line 1 as my display has only 1 line
 	payload += f"<P{page_letter}>"	# Include page letter so we can have multiple trains in the playlist
 	payload += '<FI>'				# Move in animation, slide in from the bottom to the top
-	payload += '<MA>'				# Middle fast animation speed
+	payload += f"<MA>"				# Set fast animation speed
 	payload += '<WJ>'				# Keep the text on screen for 9 seconds
 	payload += '<FI>'				# Move out animation, slide out from the bottom to the top
+	payload += '<AC>'				# Make the text narrower to fit more char on display
+	return payload
+
+def build_payload_stops(page_letter):
+	# Datasheet https://asset.conrad.com/media10/add/160267/c1/-/en/000590996DS01/datablad-590996-mc-crypt-am03127-h13.pdf
+	payload = '<L1>'				# Always use Line 1 as my display has only 1 line
+	payload += f"<P{page_letter}>"	# Include page letter so we can have multiple trains in the playlist
+	payload += '<FE>'				# Move in animation, in from the right
+	payload += f"<MQ>"				# Set animation normal speed
+	payload += '<WC>'				# Keep the text on screen for 9 seconds
+	payload += '<FE>'				# Move out animation, move out to the left
 	payload += '<AC>'				# Make the text narrower to fit more char on display
 	return payload
 
@@ -79,27 +90,66 @@ try:
 	for departure in data['payload']['departures']:
 
 		destination = shorten_destination(departure['direction'])
+		long_destination = departure['direction']
+
 		train_category = departure['trainCategory']
+		long_train_category = departure['product']['shortCategoryName']
 		
 		actual_time = departure['actualDateTime']
 		departure__time_text = actual_time[11:16] # Slices the string to get 'HH:MM'
+
 		
 		departure_platform = departure['actualTrack']
 		if(departure['cancelled']):
 			departure__time_text = "Ann."
 
+		# Print train info
 		output_string = f"{train_category} {destination} <N55>{departure__time_text} {departure_platform}"
-
-		print(f"{output_string} is of length {len(output_string)}")
-
-		first_payload = build_payload(page_letter) + output_string
-
+		first_payload = build_payload_station(page_letter) + output_string
 		checksum = calculate_xor_checksum(first_payload.encode('latin-1', 'replace'))
-
 		payload = f"<ID00>{first_payload}{checksum}<E>"
-
 		page_letter = chr(ord(page_letter) + 1)
 		
+		ser.write(payload.encode('ascii'))
+		print(f"Sent: {payload}")
+		time.sleep(0.4)
+
+		stops = ''
+		for station in departure['routeStations']:
+			stops += f"{station['mediumName']}, "
+		
+		stops = stops[:-2]
+
+		if(departure['cancelled']):
+			output_string = f"De {long_train_category} naar {destination} van {departure__time_text} rijdt niet."
+			first_payload = build_payload_stops(page_letter) + output_string
+			checksum = calculate_xor_checksum(first_payload.encode('latin-1', 'replace'))
+			payload = f"<ID00>{first_payload}{checksum}<E>"
+			page_letter = chr(ord(page_letter) + 1)
+
+			ser.write(payload.encode('ascii'))
+			print(f"Sent: {payload}")
+			time.sleep(0.4)
+			continue
+
+		# Print stops info
+		output_string = f"De {long_train_category} naar {long_destination} van {departure__time_text} stopt te {stops} en eindbestemming {long_destination}"
+		first_payload = build_payload_stops(page_letter) + output_string
+		checksum = calculate_xor_checksum(first_payload.encode('latin-1', 'replace'))
+		payload = f"<ID00>{first_payload}{checksum}<E>"
+		page_letter = chr(ord(page_letter) + 1)
+
+		ser.write(payload.encode('ascii'))
+		print(f"Sent: {payload}")
+		time.sleep(0.4)
+
+		# Print train info
+		output_string = f"{train_category} {destination} <N55>{departure__time_text} {departure_platform}"
+		first_payload = build_payload_station(page_letter) + output_string
+		checksum = calculate_xor_checksum(first_payload.encode('latin-1', 'replace'))
+		payload = f"<ID00>{first_payload}{checksum}<E>"
+		page_letter = chr(ord(page_letter) + 1)
+
 		ser.write(payload.encode('ascii'))
 		print(f"Sent: {payload}")
 		time.sleep(0.4)
