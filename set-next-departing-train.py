@@ -30,12 +30,19 @@ def calculate_xor_checksum(data_packet):
 	checksum = re.sub('b', '', checksum)
 	return checksum
 
+def shorten_destination(destination):
+	# ICD Amersfoort Schothorst
+	# ECC Brussel-Zuid
+	destination = destination.replace("Centraal", "C").replace("'s-Hertogenbosch", "IC Den Bosch")
+	destination = (destination[:12] + '') if len(destination) > 12 else destination
+	return destination
+
 def build_payload(page_letter):
 	# Datasheet https://asset.conrad.com/media10/add/160267/c1/-/en/000590996DS01/datablad-590996-mc-crypt-am03127-h13.pdf
 	payload = '<L1>'				# Always use Line 1 as my display has only 1 line
 	payload += f"<P{page_letter}>"	# Include page letter so we can have multiple trains in the playlist
 	payload += '<FI>'				# Move in animation, slide in from the bottom to the top
-	payload += '<MQ>'				# Middle fast animation speed
+	payload += '<MA>'				# Middle fast animation speed
 	payload += '<WJ>'				# Keep the text on screen for 9 seconds
 	payload += '<FI>'				# Move out animation, slide out from the bottom to the top
 	payload += '<AC>'				# Make the text narrower to fit more char on display
@@ -53,12 +60,12 @@ bytesize=serial.EIGHTBITS,
 )
 
 try:
-	url = "https://gateway.apiportal.ns.nl/reisinformatie-api/api/v2/departures?lang=nl&station=Bd&maxJourneys=3"
+	url = "https://gateway.apiportal.ns.nl/reisinformatie-api/api/v2/departures?lang=nl&station=Bd&maxJourneys=5"
 
 	hdr ={
 	# Request headers
 	'Cache-Control': 'no-cache',
-	'Ocp-Apim-Subscription-Key': '',
+	'Ocp-Apim-Subscription-Key': '####_YOUR_API_KEY_####',
 	}
 
 	req = urllib.request.Request(url, headers=hdr)
@@ -71,7 +78,7 @@ try:
 
 	for departure in data['payload']['departures']:
 
-		destination = departure['direction']
+		destination = shorten_destination(departure['direction'])
 		train_category = departure['trainCategory']
 		
 		actual_time = departure['actualDateTime']
@@ -81,7 +88,7 @@ try:
 		if(departure['cancelled']):
 			departure__time_text = "Ann."
 
-		output_string = f"{train_category} {destination.replace("Centraal", "C").replace("'s-Hertogenbosch", "Den Bosch")} {departure__time_text} <N74>{departure_platform}"
+		output_string = f"{train_category} {destination} <N55>{departure__time_text} {departure_platform}"
 
 		print(f"{output_string} is of length {len(output_string)}")
 
@@ -101,7 +108,7 @@ try:
 	playlist_id = 'A'			# Denotes the schedule no. form A-E (we can use A as we don't need multiple playlists)
 	start_date = '0001010101'	# YYMMDDHHmm
 	end_date = '9901010101'		# YYMMDDHHmm
-	pages_in_order = 'ABC'		# First show page A, then B, then C
+	pages_in_order = 'ABCDE'		# First show page A, then B, then C
 	playlist_payload = f"<T{playlist_id}>{start_date}{end_date}{pages_in_order}"
 	checksum_playlist = calculate_xor_checksum(playlist_payload.encode('latin-1', 'replace'))
 	payload = f"<ID00>{playlist_payload}{checksum_playlist}<E>" # formatted as start date, end date, playlist, checksum 
