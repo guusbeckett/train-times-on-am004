@@ -54,7 +54,7 @@ def build_payload_stops(page_letter):
 	payload += f"<P{page_letter}>"	# Include page letter so we can have multiple trains in the playlist
 	payload += '<FE>'				# Move in animation, in from the right
 	payload += f"<MQ>"				# Set animation normal speed
-	payload += '<WC>'				# Keep the text on screen for 9 seconds
+	payload += '<WA>'				# Keep the text on screen for 0.5 seconds
 	payload += '<FE>'				# Move out animation, move out to the left
 	payload += '<AC>'				# Make the text narrower to fit more char on display
 	return payload
