@@ -158,7 +158,7 @@ try:
 	playlist_id = 'A'			# Denotes the schedule no. form A-E (we can use A as we don't need multiple playlists)
 	start_date = '0001010101'	# YYMMDDHHmm
 	end_date = '9901010101'		# YYMMDDHHmm
-	pages_in_order = 'ABCDE'		# First show page A, then B, then C
+	pages_in_order = 'ABCDEFGHIJKLMNO'		# First show page A, then B, then C
 	playlist_payload = f"<T{playlist_id}>{start_date}{end_date}{pages_in_order}"
 	checksum_playlist = calculate_xor_checksum(playlist_payload.encode('latin-1', 'replace'))
 	payload = f"<ID00>{playlist_payload}{checksum_playlist}<E>" # formatted as start date, end date, playlist, checksum 
